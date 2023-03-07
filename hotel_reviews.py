@@ -89,8 +89,8 @@ hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(lambda x: 
 
 ################## Codes For Testing ##################
 # Printing first 5 rows
-hotel_reviews_df = hotel_reviews_df[["review", "cleaned_review"]]
-print(hotel_reviews_df.head()) 
+# hotel_reviews_df = hotel_reviews_df[["review", "cleaned_review"]]
+# print(hotel_reviews_df.head()) 
 
 # Uncomment the below two codes to get a smaller csv file (input the column that you wish to check)
 # hotel_reviews_df = hotel_reviews_df[["review", "cleaned_review"]]
