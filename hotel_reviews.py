@@ -69,7 +69,7 @@ def clean_review(review):
     review = [word for word in review if len(word) > 0]
 
     #POS tag
-    pos_tags = get_wordnet_pos(review)
+    pos_tags = pos_tag(review)
 
     #Lemmatise words E.g. Running, Ran, Run -> Run (Base form)
     review = [WordNetLemmatizer().lemmatize(t[0], get_wordnet_pos(t[1])) for t in pos_tags]
@@ -86,7 +86,6 @@ nltk.download('popular')
 
 #10. Clean reviews (Got error)
 hotel_reviews_df["review_clean"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
-
 
 ################## Codes For Testing ##################
 # Printing first 5 rows
