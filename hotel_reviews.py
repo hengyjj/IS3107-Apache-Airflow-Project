@@ -32,7 +32,6 @@ hotel_reviews_df = hotel_reviews_df.sample(frac = 0.1, replace = False, random_s
 hotel_reviews_df["review"] = hotel_reviews_df["review"].replace(
     {"No Negative|No Positive": ""}, regex=True)
 
-
 #7. Classifying reviews based on WordNet Part-of-speech (POS) tag
 def get_wordnet_pos(pos_tag):
     if pos_tag.startswith('J'):
@@ -85,11 +84,15 @@ def clean_review(review):
 #9. Downloading Popular package from NLTK
 nltk.download('popular')
 
+#10. Clean reviews (Got error)
+hotel_reviews_df["review_clean"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
+
 
 ################## Codes For Testing ##################
 # Printing first 5 rows
+# hotel_reviews_df = hotel_reviews_df[["review", "review_clean"]]
 # print(hotel_reviews_df.head()) 
 
 # Uncomment the below two codes to get a smaller csv file (input the column that you wish to check)
-# hotel_reviews_df = hotel_reviews_df[["review", "is_bad_review"]]
+# hotel_reviews_df = hotel_reviews_df[["review", "review_clean"]]
 # hotel_reviews_df.to_csv('hotel_reviews_df_2.csv', index=False)
