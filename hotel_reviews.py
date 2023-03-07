@@ -85,13 +85,13 @@ def clean_review(review):
 nltk.download('popular')
 
 #10. Clean reviews (Got error)
-hotel_reviews_df["review_clean"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
+hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
 
 ################## Codes For Testing ##################
 # Printing first 5 rows
-# hotel_reviews_df = hotel_reviews_df[["review", "review_clean"]]
-# print(hotel_reviews_df.head()) 
+hotel_reviews_df = hotel_reviews_df[["review", "cleaned_review"]]
+print(hotel_reviews_df.head()) 
 
 # Uncomment the below two codes to get a smaller csv file (input the column that you wish to check)
-# hotel_reviews_df = hotel_reviews_df[["review", "review_clean"]]
+# hotel_reviews_df = hotel_reviews_df[["review", "cleaned_review"]]
 # hotel_reviews_df.to_csv('hotel_reviews_df_2.csv', index=False)
