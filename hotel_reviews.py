@@ -79,7 +79,7 @@ def clean_review(review):
 
     #Join all string
     review = " ".join(review)
-    return (review)
+    return (review) 
 
 #9. Downloading Popular package from NLTK
 nltk.download('popular')
@@ -94,4 +94,4 @@ hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(lambda x: 
 
 # Uncomment the below two codes to get a smaller csv file (input the column that you wish to check)
 # hotel_reviews_df = hotel_reviews_df[["review", "cleaned_review"]]
-# hotel_reviews_df.to_csv('hotel_reviews_df_2.csv', index=False)
+# hotel_reviews_df.to_csv('hotel_reviews_df_cleaned.csv', index=False)
