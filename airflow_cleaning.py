@@ -21,7 +21,7 @@ with DAG(
     'is3107_project',
     default_args=default_args,
     description='IS3107 Project',
-    schedule=None,
+    schedule_interval=None,
     start_date=datetime(2021,1,1),
     catchup=False,
     tags=['example'], 
