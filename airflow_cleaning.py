@@ -3,7 +3,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 import pandas as pd
-import zipfile
+from zipfile import ZipFile
 import json
 import string
 import nltk
@@ -21,7 +21,7 @@ with DAG(
     'is3107_project',
     default_args=default_args,
     description='IS3107 Project',
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021,1,1),
     catchup=False,
     tags=['example'], 
@@ -31,21 +31,27 @@ with DAG(
 # ---------------------------- Start of Extract -----------------------------
     def extract(**kwargs):
         ti = kwargs['ti']
+        # This command will download data via api and download data as zip file locally at the desired path. (Requires Kaggle API key to perform. )
         BashOperator(
             task_id='download_dataset',
-            bash_command='kaggle datasets download jiashenliu/515k-hotel-reviews-data-in-europe'
-                            '--path /Users/yijie/Desktop/Y2S2/IS3107/Project/Project' #this requires Kaggle API key to perform. 
+            bash_command='kaggle datasets download jiashenliu/515k-hotel-reviews-data-in-europe '
+                            '--path /Users/yijie/airflow/dags', 
+            dag=dag
         )
 
-        with zipfile.ZipFile('/Users/yijie/Desktop/Y2S2/IS3107/Project/Project/515k-hotel-reviews-data-in-europe.zip', 'r') as zip_ref:
-            zip_ref.extractall('/Users/yijie/Desktop/Y2S2/IS3107/Project/Project/515k-hotel-reviews-data-in-europe.zip')
+        # HAS ERROR as file is not unzipping
+        with zipfile.ZipFile('/Users/yijie/airflow/dags/515k-hotel-reviews-data-in-europe.zip', 'w') as zip_ref:
+            zip_ref.extractall('/Users/yijie/airflow/dags/515k-hotel-reviews-data-in-europe.zip')
+
+        print("Finish downloading and unzipping")    
+
 # ---------------------------- End of Extract -----------------------------
 
 # ---------------------------- Start of Transform -----------------------------
     def transform(**kwargs):
         ti = kwargs['ti']
 
-        hotel_reviews_df = pd.read_csv('/Users/yijie/Desktop/Y2S2/IS3107/Project/Project/Hotel_Reviews.csv')
+        hotel_reviews_df = pd.read_csv('/Users/yijie/airflow/dags/Hotel_Reviews.csv')
         
         #3. Append the positive and negative reviews
         hotel_reviews_df["review"] = hotel_reviews_df["Negative_Review"] + hotel_reviews_df["Positive_Review"]
@@ -122,6 +128,7 @@ with DAG(
         #10. Clean reviews (Got error)
         hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
 
+        print("Finish transforming")    
 # ---------------------------- End of Transform -----------------------------
 
 # ---------------------------- Start of Load -----------------------------
@@ -130,7 +137,8 @@ with DAG(
         
         # Write the cleaned data to a new CSV file
         hotel_reviews_cleaned.to_csv('/Users/yijie/Desktop/Y2S2/IS3107/Project/Project/Hotel_Reviews_Cleaned.csv', index=False)
-
+        
+        print("Finish loading")    
 # ---------------------------- End of Load -----------------------------
 
     extract_task = PythonOperator(
