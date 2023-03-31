@@ -1,6 +1,9 @@
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from google.oauth2 import service_account
+from google.cloud import storage
+from google.cloud import bigquery
 from datetime import datetime
 import pandas as pd
 from zipfile import ZipFile
@@ -27,16 +30,23 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+    
+    
 
+    # ---------------------------- Start of Extract -----------------------------
+    # This command will download data via api and download data as zip file locally at the desired path. (Requires Kaggle API key to perform. )
+    # Get your home directory inside your OS, then store whatever files we got in this directory. This is to prevent hardcoding file directory
+    home_dir = os.environ['HOME']
 
-# ---------------------------- Start of Extract -----------------------------
-# This command will download data via api and download data as zip file locally at the desired path. (Requires Kaggle API key to perform. )
-    home_dir = os.environ['HOME'] # Get your home directory inside your OS, then store whatever files we got in this directory. This is to prevent hardcoding file directory
+     # Load the service account credentials from the JSON key file
+    my_credentials = service_account.Credentials.from_service_account_file(
+        f'{home_dir}/is3107_GCP.json'
+    )
 
     download_dataset = BashOperator(
         task_id='download_dataset',
         bash_command='kaggle datasets download jiashenliu/515k-hotel-reviews-data-in-europe '
-                        f'--path {home_dir}/',
+        f'--path {home_dir}/',
         dag=dag
     )
 
@@ -46,7 +56,7 @@ with DAG(
         with ZipFile(f'{home_dir}/515k-hotel-reviews-data-in-europe.zip', 'r') as zip_ref:
             zip_ref.extractall(f'{home_dir}')
 
-        print("Finish downloading and unzipping")    
+        print("Finish downloading and unzipping")
 
 # ---------------------------- End of Extract -----------------------------
 
@@ -54,109 +64,168 @@ with DAG(
     def transform(**kwargs):
         ti = kwargs['ti']
         hotel_reviews_df = pd.read_csv(f'{home_dir}/Hotel_Reviews.csv')
-        
-        #3. Append the positive and negative reviews
-        hotel_reviews_df["review"] = hotel_reviews_df["Negative_Review"] + hotel_reviews_df["Positive_Review"]
 
-        #4. Assign the label to the newly created positive and negative reviews (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html)
+        # 3. Append the positive and negative reviews
+        hotel_reviews_df["review"] = hotel_reviews_df["Negative_Review"] + \
+            hotel_reviews_df["Positive_Review"]
+
+        # 4. Assign the label to the newly created positive and negative reviews (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html)
         def make_review(row):
             if row["Reviewer_Score"] < 5:
                 return 1
             else:
                 return 0
 
-        hotel_reviews_df["is_bad_review"] = hotel_reviews_df.apply(make_review, axis=1)
+        hotel_reviews_df["is_bad_review"] = hotel_reviews_df.apply(
+            make_review, axis=1)
 
-        #5. Speed up computations by sampling
-        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sample.html
-        hotel_reviews_df = hotel_reviews_df.sample(frac = 0.1, replace = False, random_state=42)
+        # 5. Speed up computations by sampling
+        # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sample.html
+        hotel_reviews_df = hotel_reviews_df.sample(
+            frac=0.1, replace=False, random_state=42)
 
-        #6. Cleaning reviews to exclude "No Negative" & "No Positive"
+        # 6. Cleaning reviews to exclude "No Negative" & "No Positive"
         hotel_reviews_df["review"] = hotel_reviews_df["review"].replace(
             {"No Negative|No Positive": ""}, regex=True)
 
-        #7. Classifying reviews based on WordNet Part-of-speech (POS) tag
+        # 7. Classifying reviews based on WordNet Part-of-speech (POS) tag
         def get_wordnet_pos(pos_tag):
             if pos_tag.startswith('J'):
                 return wordnet.ADJ
-            
+
             elif pos_tag.startswith('V'):
                 return wordnet.VERB
-            
+
             elif pos_tag.startswith('N'):
                 return wordnet.NOUN
-            
+
             elif pos_tag.startswith('R'):
                 return wordnet.ADV
-            
+
             else:
                 return wordnet.NOUN
 
-        #8. Cleaning reviews
+        # 8. Cleaning reviews
         def clean_review(review):
-            #Convert all reviews to lowercase
+            # Convert all reviews to lowercase
             review = review.lower()
 
-            #Removing punctuation
+            # Removing punctuation
             review = review.replace(string.punctuation, '')
             review = review.split(' ')
 
-            #Filtering out digits
-            review = [word for word in review if not any(c.isnumeric() for c in word)]
+            # Filtering out digits
+            review = [word for word in review if not any(
+                c.isnumeric() for c in word)]
 
-            #Removing stop words such as a, an, the, is, are, was, were, and etc.
+            # Removing stop words such as a, an, the, is, are, was, were, and etc.
             stop = stopwords.words('english')
             review = [word for word in review if word not in stop]
 
-            #Removing empty words
+            # Removing empty words
             review = [word for word in review if len(word) > 0]
 
-            #POS tag
+            # POS tag
             pos_tags = pos_tag(review)
 
-            #Lemmatise words E.g. Running, Ran, Run -> Run (Base form)
-            review = [WordNetLemmatizer().lemmatize(t[0], get_wordnet_pos(t[1])) for t in pos_tags]
+            # Lemmatise words E.g. Running, Ran, Run -> Run (Base form)
+            review = [WordNetLemmatizer().lemmatize(
+                t[0], get_wordnet_pos(t[1])) for t in pos_tags]
 
-            #Keeping words that has more than 1 letter
+            # Keeping words that has more than 1 letter
             review = [word for word in review if len(word) > 1]
 
-            #Join all string
+            # Join all string
             review = " ".join(review)
-            return (review) 
+            return (review)
 
-        #9. Downloading Popular package from NLTK
+        # 9. Downloading Popular package from NLTK
         nltk.download('popular')
 
-        #10. Clean reviews (Got error)
-        hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
+        # 10. Clean reviews (Got error)
+        hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(
+            lambda x: clean_review(x))
 
-        print("Finish transforming")    
+        print("Finish transforming")
 # ---------------------------- End of Transform -----------------------------
 
 # ---------------------------- Start of Load -----------------------------
     def load(**kwargs):
         hotel_reviews_cleaned = pd.read_csv(f'{home_dir}/Hotel_Reviews.csv')
-        
+
         # Write the cleaned data to a new CSV file
-        hotel_reviews_cleaned.to_csv(f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
-        
-        print("Finish loading")    
+        hotel_reviews_cleaned.to_csv(
+            f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
+
+        print("Finish loading")
 # ---------------------------- End of Load -----------------------------
 
+    
+# ---------------------------- Start of upload to cloud storage -----------------------------
+
+    def uploadToCloudStorage(**kwargs):
+        # Connect to Google Cloud Storage
+        storage_client = storage.Client(credentials=my_credentials)
+        # Get the bucket
+        bucket = storage_client.get_bucket('is3107_jw_test')
+
+        # Upload the CSV file
+        blob = bucket.blob('Hotel_Reviews_Cleaned.csv')
+        blob.upload_from_filename(f'{home_dir}/Hotel_Reviews_Cleaned.csv')
+
+# ---------------------------- End of upload to cloud storage -----------------------------
+
+
+# ---------------------------- Start of Transfer to Big Query -----------------------------
+    def transferUploadedCSVToBigQuery(**kwargs):
+        # Connect to Google Cloud BigQuery
+        bigquery_client = bigquery.Client(credentials=my_credentials)
+        # Get the dataset
+        dataset = bigquery_client.dataset('is3107_jw_dataset')
+        # Create the table
+        table = dataset.table('is3107_jw_table')
+
+        # Load the CSV file into the table
+        job_config = bigquery.LoadJobConfig(
+            autodetect=True, source_format=bigquery.SourceFormat.CSV, write_disposition='WRITE_TRUNCATE'
+        )
+        job = bigquery_client.load_table_from_uri('gs://is3107_jw_test/Hotel_Reviews_Cleaned.csv', table, job_config=job_config)
+        job.result()
+        destination_table = bigquery_client.get_table(table)  # Make an API request.
+        print("Loaded {} rows into bigquery from uploaded cleaned csv data file in cloud storage.".format(destination_table.num_rows))
+
+# ---------------------------- End of Transfer to Big Query -----------------------------
+      
+
+# ---------------------------- Start of TASKS -----------------------------
+
     extract_task = PythonOperator(
-        task_id='extract', 
+        task_id='extract',
         python_callable=extract,
-    ) #this is the function name that this task is testing.
-    
-    
+    )  # this is the function name that this task is testing.
+
     transform_task = PythonOperator(
-        task_id='transform', 
+        task_id='transform',
         python_callable=transform,
     )
 
     load_task = PythonOperator(
-        task_id='load', 
+        task_id='load',
         python_callable=load,
     )
-    
-    download_dataset >> extract_task >> transform_task >> load_task
+
+    uploadToCloudStorageTask = PythonOperator(
+        task_id='uploadToCloudStorage',
+        python_callable=uploadToCloudStorage,
+    )
+
+    transferUploadedCSVToBigQueryTask = PythonOperator(
+        task_id='transferUploadedCSVToBigQuery',
+        python_callable=transferUploadedCSVToBigQuery,
+    )
+
+    # ---------------------------- END of TASKS -----------------------------
+
+
+    # Finaly, execute the tasks one by one
+    download_dataset >> extract_task >> transform_task >> load_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask
