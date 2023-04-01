@@ -40,7 +40,7 @@ with DAG(
 
      # Load the service account credentials from the JSON key file
     my_credentials = service_account.Credentials.from_service_account_file(
-        f'{home_dir}/is3107_GCP.json'
+        f'{home_dir}/is3107Project.json'
     )
 
     download_dataset = BashOperator(
@@ -167,7 +167,7 @@ with DAG(
         # Connect to Google Cloud Storage
         storage_client = storage.Client(credentials=my_credentials)
         # Get the bucket
-        bucket = storage_client.get_bucket('is3107_jw_test')
+        bucket = storage_client.get_bucket('is3107-project-group8')
 
         # Upload the CSV file
         blob = bucket.blob('Hotel_Reviews_Cleaned.csv')
@@ -181,15 +181,15 @@ with DAG(
         # Connect to Google Cloud BigQuery
         bigquery_client = bigquery.Client(credentials=my_credentials)
         # Get the dataset
-        dataset = bigquery_client.dataset('is3107_jw_dataset')
+        dataset = bigquery_client.dataset('is3107_projectv2')
         # Create the table
-        table = dataset.table('is3107_jw_table')
+        table = dataset.table('is3107_projecv2')
 
         # Load the CSV file into the table
         job_config = bigquery.LoadJobConfig(
             autodetect=True, source_format=bigquery.SourceFormat.CSV, write_disposition='WRITE_TRUNCATE'
         )
-        job = bigquery_client.load_table_from_uri('gs://is3107_jw_test/Hotel_Reviews_Cleaned.csv', table, job_config=job_config)
+        job = bigquery_client.load_table_from_uri('gs://is3107-project-group8/Hotel_Reviews_Cleaned.csv', table, job_config=job_config)
         job.result()
         destination_table = bigquery_client.get_table(table)  # Make an API request.
         print("Loaded {} rows into bigquery from uploaded cleaned csv data file in cloud storage.".format(destination_table.num_rows))
