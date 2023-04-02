@@ -10,9 +10,14 @@ from gensim.test.utils import common_texts
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# (Run this command in terminal first: "export GOOGLE_APPLICATION_CREDENTIALS="/Users/yijie/is3107Project.json")
+# Commands to run in terminal: 
+# export GOOGLE_APPLICATION_CREDENTIALS="/Users/yijie/is3107Project.json" (Your home path)
+# pip install google-cloud-bigquery
+# pip install pandas
+# pip install gensim
+# pip install wordcloud
 
-# Retrieving data from BigQuery (Estimation Time of Completion: 5 mins)
+# 1. Retrieving data from BigQuery (Estimation Time of Completion: 5 mins)
 client = bigquery.Client()
 # query = """SELECT * FROM `is3107_projectv2.is3107_projecv2` LIMIT 2"""
 # query_job = client.query(query)
@@ -28,58 +33,58 @@ columns = ["Hotel_Address", "Additional_Number_of_Scoring", "Review_Date", "Aver
                           "lat", "lng"] #supposed to have last 3 columns ("review", "is_bad_review", "cleaned_review")
 
 hotel_reviews_df_cleaned = pd.DataFrame.from_records(data, columns=columns)
-hotel_reviews_df_cleaned.to_csv("cleaned.csv")
+# hotel_reviews_df_cleaned.to_csv("cleaned.csv")
 
 # Estimation Time of Completion: > 6 mins and are commented out for now.
-# #1. This step will add a new column called sentiments to classify the reviews based on four scores: 
-# # neutrality, positivity, negativity and overall scores that descrbies the previous three scores.
+# 2. This step will add a new column called sentiments to classify the reviews based on four scores: 
+# neutrality, positivity, negativity and overall scores that descrbies the previous three scores.
 # sid = SentimentIntensityAnalyzer()
 # hotel_reviews_df_cleaned["sentiments"] = hotel_reviews_df_cleaned["review"].apply(lambda review: sid.polarity_scores(str(review)))
 # hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned.drop(['sentiments'], axis=1), hotel_reviews_df_cleaned['sentiments'].apply(pd.Series)], axis=1)
 
-# #2. This will add 2 more new columns, the number of character and number of words column based on each corresponding review
+# 3. This will add 2 more new columns, the number of character and number of words column based on each corresponding review
 # hotel_reviews_df_cleaned["num_chars"] = hotel_reviews_df_cleaned["review"].str.len()
 # hotel_reviews_df_cleaned["num_words"] = hotel_reviews_df_cleaned["review"].str.split().str.len()
 
-# #3. Create doc2vec vector columns
-# # It is using the gensim library to create a Doc2Vec model and apply it to the cleaned review texts, 
-# # then concatenating the resulting vectors with the original DataFrame to create new columns.
-# # Doc2Vec is an unsupervised machine learning algorithm that learns fixed-length vector representations 
-# # (embeddings) from variable-length pieces of texts, such as documents, paragraphs, or sentences. 
-# # These embeddings can be used for tasks like text classification, clustering, and similarity matching. 
-# # Doc2Vec is an extension of Word2Vec, which learns embeddings for individual words. 
-# # Unlike Word2Vec, Doc2Vec learns a separate embedding for each document, while still taking into account 
-# # the words in the document.
+# 4. Create doc2vec vector columns
+# It is using the gensim library to create a Doc2Vec model and apply it to the cleaned review texts, 
+# then concatenating the resulting vectors with the original DataFrame to create new columns.
+# Doc2Vec is an unsupervised machine learning algorithm that learns fixed-length vector representations 
+# (embeddings) from variable-length pieces of texts, such as documents, paragraphs, or sentences. 
+# These embeddings can be used for tasks like text classification, clustering, and similarity matching. 
+# Doc2Vec is an extension of Word2Vec, which learns embeddings for individual words. 
+# Unlike Word2Vec, Doc2Vec learns a separate embedding for each document, while still taking into account 
+# the words in the document.
 
-# # Create tagged documents
+# Create tagged documents
 # tagged_documents = [TaggedDocument(str(review).split(), [i]) for i, review in enumerate(hotel_reviews_df_cleaned["cleaned_review"])]
 
 # #Train the Doc2Vec model
 # model = Doc2Vec(tagged_documents, vector_size=5, window=2, min_count=1, workers=4)
 
-# #Infer vectors for each document
+#Infer vectors for each document
 # doc2vec_df = pd.DataFrame([model.infer_vector(str(review).split()) for review in hotel_reviews_df_cleaned["cleaned_review"]])
 # doc2vec_df.columns = ["doc2vec_vector_" + str(i) for i in range(doc2vec_df.shape[1])]
 
-# # Concatenate the Doc2Vec vector with the original df
+# Concatenate the Doc2Vec vector with the original df
 # hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, doc2vec_df], axis=1)
 
-# #4. Create TF-IDFS columns
+# 5. Create TF-IDFS columns
 
-# # Create a TfidfVectorizer with a minimum document frequency of 10
+# Create a TfidfVectorizer with a minimum document frequency of 10
 # tfidf = TfidfVectorizer(min_df=10)
 
-# # Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
+# Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
 # hotel_reviews_df_cleaned["cleaned_review"] = hotel_reviews_df_cleaned["cleaned_review"].fillna("")
 # tfidf_result = tfidf.fit_transform(hotel_reviews_df_cleaned["cleaned_review"])
 
-# # Convert the result to a pandas DataFrame with the feature names as column headers
+# Convert the result to a pandas DataFrame with the feature names as column headers
 # tfidf_df = pd.DataFrame(tfidf_result.toarray(), columns=tfidf.get_feature_names_out())
 
-# # Add a prefix to each column name for identification purposes
+# Add a prefix to each column name for identification purposes
 # tfidf_df = tfidf_df.add_prefix('word_')
 
-# # Concatenate the original dataframe with the TF-IDF matrix
+# Concatenate the original dataframe with the TF-IDF matrix
 # hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, tfidf_df], axis=1)
 
 # print(hotel_reviews_df_cleaned.head()) 
