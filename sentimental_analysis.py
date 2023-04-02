@@ -102,7 +102,11 @@ hotel_reviews_df_cleaned.to_csv("cleaned.csv")
 # #Dataset is not balanced but also can be used an indicator for client to know that they are doing a good job
 
 
-# #7. Generate word cloud
+# #7. Interested to find out the most used words in the reviews, regardless of good or bad
+# #This helps the client to see what is the sentiment about the hotel among previous guest
+# #Examples are "Expensive" which could indicate the per night prices are too high and or
+# #Small, which could indicate the rooms are too small. 
+# #Further investigation would be needed
 # def generateWordCloud(data, title = None):
 #     wordCloud = WordCloud(
 #         background_color = 'white',
