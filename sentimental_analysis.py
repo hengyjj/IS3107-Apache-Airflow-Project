@@ -17,7 +17,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 # pip install gensim
 # pip install wordcloud
 
-# 1. Retrieving data from BigQuery (Estimation Time of Completion: 5 mins)
+# 1. Retrieving data from BigQuery (Estimation Time of Completion: 2 mins)
 client = bigquery.Client()
 table_ref = client.dataset("is3107_projectv2").table("is3107_projecv2")
 rows = client.list_rows(table_ref)
@@ -26,10 +26,10 @@ columns = ["Hotel_Address", "Additional_Number_of_Scoring", "Review_Date", "Aver
                           "Hotel_Name", "Reviewer_Nationality", "Negative_Review", "Review_Total_Negative_Word_Counts", 
                           "Total_Number_of_Reviews", "Positive_Review", "Review_Total_Positive_Word_Counts", 
                           "Total_Number_of_Reviews_Reviewer_Has_Given", "Reviewer_Score", "Tags", "days_since_review", 
-                          "lat", "lng"] #supposed to have last 3 columns ("review", "is_bad_review", "cleaned_review")
+                          "lat", "lng", "review", "is_bad_review", "cleaned_review"]
 
 hotel_reviews_df_cleaned = pd.DataFrame.from_records(data, columns=columns)
-# hotel_reviews_df_cleaned.to_csv("cleaned.csv")
+hotel_reviews_df_cleaned.to_csv("cleaned.csv")
 
 # # Estimation Time of Completion: > 6 mins and are commented out for now.
 # # 2. This step will add a new column called sentiments to classify the reviews based on four scores: 
