@@ -2,3 +2,6 @@ apache-airflow-providers-google==8.1.0
 kaggle
 nltk
 pandas
+google-cloud-bigquery
+gensim
+wordcloud
