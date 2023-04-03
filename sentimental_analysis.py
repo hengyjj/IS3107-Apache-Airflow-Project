@@ -36,7 +36,7 @@ hotel_reviews_df_cleaned.to_csv("cleaned.csv")
 
 print("End of Task 1")
 
-# Estimation Time of Completion: > 6 mins and are commented out for now.
+# Estimation Time of Completion: > 5 mins and are commented out for now.
 # 2. This step will add a new column called sentiments to classify the reviews based on four scores: 
 # neutrality, positivity, negativity and overall scores that descrbies the previous three scores.
 sid = SentimentIntensityAnalyzer()
@@ -76,7 +76,7 @@ hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, doc2vec_df], axi
 
 print("End of Task 4")
 
-#5. Create TF-IDFS columns
+#5. Create TF-IDFS columns (sklearn.__version__ >= 1.0.x by "pip install --upgrade scikit-learn")
 # Create a TfidfVectorizer with a minimum document frequency of 10
 tfidf = TfidfVectorizer(min_df=10)
 
