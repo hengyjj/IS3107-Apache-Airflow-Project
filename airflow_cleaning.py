@@ -145,20 +145,13 @@ with DAG(
         # 10. Clean reviews (Got error)
         hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(
             lambda x: clean_review(x))
+        
+        # Write the cleaned data to a new CSV file
+        hotel_reviews_df.to_csv(
+            f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
 
         print("Finish transforming")
 # ---------------------------- End of Transform -----------------------------
-
-# ---------------------------- Start of Load -----------------------------
-    def load(**kwargs):
-        hotel_reviews_cleaned = pd.read_csv(f'{home_dir}/Hotel_Reviews.csv')
-
-        # Write the cleaned data to a new CSV file
-        hotel_reviews_cleaned.to_csv(
-            f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
-
-        print("Finish loading")
-# ---------------------------- End of Load -----------------------------
 
     
 # ---------------------------- Start of upload to cloud storage -----------------------------
@@ -209,10 +202,6 @@ with DAG(
         python_callable=transform,
     )
 
-    load_task = PythonOperator(
-        task_id='load',
-        python_callable=load,
-    )
 
     uploadToCloudStorageTask = PythonOperator(
         task_id='uploadToCloudStorage',
@@ -228,4 +217,4 @@ with DAG(
 
 
     # Finaly, execute the tasks one by one
-    download_dataset >> extract_task >> transform_task >> load_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask
+    download_dataset >> extract_task >> transform_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask
