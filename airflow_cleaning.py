@@ -65,11 +65,11 @@ with DAG(
         ti = kwargs['ti']
         hotel_reviews_df = pd.read_csv(f'{home_dir}/Hotel_Reviews.csv')
 
-        # 3. Append the positive and negative reviews
+        # 1. Append the positive and negative reviews
         hotel_reviews_df["review"] = hotel_reviews_df["Negative_Review"] + \
             hotel_reviews_df["Positive_Review"]
 
-        # 4. Assign the label to the newly created positive and negative reviews (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html)
+        # 2. Assign the label to the newly created positive and negative reviews (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html)
         def make_review(row):
             if row["Reviewer_Score"] < 5:
                 return 1
@@ -79,16 +79,16 @@ with DAG(
         hotel_reviews_df["is_bad_review"] = hotel_reviews_df.apply(
             make_review, axis=1)
 
-        # 5. Speed up computations by sampling
+        # 3. Speed up computations by sampling
         # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sample.html
         hotel_reviews_df = hotel_reviews_df.sample(
             frac=0.1, replace=False, random_state=42)
 
-        # 6. Cleaning reviews to exclude "No Negative" & "No Positive"
+        # 4. Cleaning reviews to exclude "No Negative" & "No Positive"
         hotel_reviews_df["review"] = hotel_reviews_df["review"].replace(
             {"No Negative|No Positive": ""}, regex=True)
 
-        # 7. Classifying reviews based on WordNet Part-of-speech (POS) tag
+        # 5. Classifying reviews based on WordNet Part-of-speech (POS) tag
         def get_wordnet_pos(pos_tag):
             if pos_tag.startswith('J'):
                 return wordnet.ADJ
@@ -105,7 +105,7 @@ with DAG(
             else:
                 return wordnet.NOUN
 
-        # 8. Cleaning reviews
+        # 6. Cleaning reviews
         def clean_review(review):
             # Convert all reviews to lowercase
             review = review.lower()
@@ -139,10 +139,10 @@ with DAG(
             review = " ".join(review)
             return (review)
 
-        # 9. Downloading Popular package from NLTK
+        # 7. Downloading Popular package from NLTK
         nltk.download('popular')
 
-        # 10. Clean reviews (Got error)
+        # 8. Clean reviews 
         hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(
             lambda x: clean_review(x))
         
