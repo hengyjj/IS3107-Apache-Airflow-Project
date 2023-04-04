@@ -39,6 +39,7 @@ print("End of Task 1")
 # Estimation Time of Completion: > 5 mins and are commented out for now.
 # 2. This step will add a new column called sentiments to classify the reviews based on four scores: 
 # neutrality, positivity, negativity and overall scores that descrbies the previous three scores.
+hotel_reviews_df_cleaned = hotel_reviews_df_cleaned[["review", "is_bad_review", "cleaned_review"]]
 sid = SentimentIntensityAnalyzer()
 hotel_reviews_df_cleaned["sentiments"] = hotel_reviews_df_cleaned["review"].apply(lambda review: sid.polarity_scores(str(review)))
 hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned.drop(['sentiments'], axis=1), hotel_reviews_df_cleaned['sentiments'].apply(pd.Series)], axis=1)
@@ -46,8 +47,9 @@ hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned.drop(['sentiments
 print("End of Task 2")
 
 #3. This will add 2 more new columns, the number of character and number of words column based on each corresponding review
-hotel_reviews_df_cleaned["num_chars"] = hotel_reviews_df_cleaned["review"].str.len()
-hotel_reviews_df_cleaned["num_words"] = hotel_reviews_df_cleaned["review"].str.split().str.len()
+hotel_reviews_df_cleaned["num_chars"] = hotel_reviews_df_cleaned["review"].apply(lambda x: len(str(x)))
+hotel_reviews_df_cleaned["num_words"] = hotel_reviews_df_cleaned["review"].apply(lambda x: len(str(x).split(" ")))
+
 
 print("End of Task 3")
 
@@ -62,13 +64,13 @@ print("End of Task 3")
 # the words in the document.
 
 # Create tagged documents
-tagged_documents = [TaggedDocument(str(review).split(), [i]) for i, review in enumerate(hotel_reviews_df_cleaned["cleaned_review"])]
+tagged_documents = [TaggedDocument(str(review).split(" "), [i]) for i, review in enumerate(hotel_reviews_df_cleaned["cleaned_review"])]
 
 #Train the Doc2Vec model
 model = Doc2Vec(tagged_documents, vector_size=5, window=2, min_count=1, workers=4)
 
 #Infer vectors for each document
-doc2vec_df = pd.DataFrame([model.infer_vector(str(review).split()) for review in hotel_reviews_df_cleaned["cleaned_review"]])
+doc2vec_df = pd.DataFrame([model.infer_vector(str(review).split(" ")) for review in hotel_reviews_df_cleaned["cleaned_review"]])
 doc2vec_df.columns = ["doc2vec_vector_" + str(i) for i in range(doc2vec_df.shape[1])]
 
 # Concatenate the Doc2Vec vector with the original df
@@ -80,17 +82,18 @@ print("End of Task 4")
 # Create a TfidfVectorizer with a minimum document frequency of 10
 tfidf = TfidfVectorizer(min_df=10)
 
-# Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
+# # Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
 hotel_reviews_df_cleaned["cleaned_review"] = hotel_reviews_df_cleaned["cleaned_review"].fillna("")
 tfidf_result = tfidf.fit_transform(hotel_reviews_df_cleaned["cleaned_review"])
 
-# Convert the result to a pandas DataFrame with the feature names as column headers
+
+# # Convert the result to a pandas DataFrame with the feature names as column headers
 tfidf_df = pd.DataFrame(tfidf_result.toarray(), columns=tfidf.get_feature_names_out())
 
-# Add a prefix to each column name for identification purposes
+# # Add a prefix to each column name for identification purposes
 tfidf_df = tfidf_df.add_prefix('word_')
 
-# Concatenate the original dataframe with the TF-IDF matrix
+# # Concatenate the original dataframe with the TF-IDF matrix
 hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, tfidf_df], axis=1)
 
 print("End of Task 5")
@@ -111,6 +114,8 @@ print(round(numOfBadReviews, 3) * 100)
 numOfGoodReviews = goodReview / totalReviews
 print(round(numOfGoodReviews, 3) * 100)
 
+print(results)
+
 #From this we can see that the only 4.3% of the reviews given are bad and 95.7% are good.
 #Dataset is not balanced but also can be used an indicator for client to know that they are doing a good job
 
@@ -121,7 +126,6 @@ print("End of Task 6")
 #Examples are "Expensive" which could indicate the per night prices are too high and or
 #Small, which could indicate the rooms are too small. 
 #Further investigation would be needed
-
 def generateWordCloud(data, title = None):
     
     interestedData = str(data)
@@ -149,8 +153,24 @@ criteria = "review"
 allHotelData = hotel_reviews_df_cleaned[criteria]
 generateWordCloud(allHotelData)
 
-hotel_reviews_df_cleaned[hotel_reviews_df_cleaned["num_words"] >= 5].sort_values("pos", ascending = False)[["review", "pos"]].head(10)
+#7. Get the first 10 highest reviews with a positive Sentiment
+totalNumOfWords = hotel_reviews_df_cleaned["num_words"] 
+totalNumOfWordsAboveFive = totalNumOfWords >= 5
+
+getTotalNumOfWordsAboveFive = hotel_reviews_df_cleaned[totalNumOfWordsAboveFive]
+getSortedPositiveValue = getTotalNumOfWordsAboveFive.sort_values("pos", ascending = False)[["review", "pos"]].head(10)
+print(getSortedPositiveValue)
 
 print("End of Task 7")
+
+#8. Get the first 10 highest reviews with a Negative Sentiment
+totalNumOfWords = hotel_reviews_df_cleaned["num_words"]
+totalNumOfWordsAboveFive = totalNumOfWords >= 5
+
+getTotalNumOfWordsAboveFive = hotel_reviews_df_cleaned[totalNumOfWordsAboveFive]
+getSortedPositiveValue = getTotalNumOfWordsAboveFive.sort_values("neg", ascending = False)[["review", "neg"]].head(10)
+print(getSortedPositiveValue)
+
+print("End of Task 8")
 
 print("End of file")
