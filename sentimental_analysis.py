@@ -10,10 +10,16 @@ import matplotlib.pyplot as plt
 from gensim.test.utils import common_texts
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
+import seaborn as sns
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.metrics import average_precision_score, precision_recall_curve
+
 
 # Commands to run in terminal: 
 # pip install google-cloud-bigquery
-# pip install pandas
+# pip install pandas 
 # pip install gensim
 # pip install wordcloud
 
@@ -36,7 +42,7 @@ hotel_reviews_df_cleaned.to_csv("cleaned.csv")
 
 print("End of Task 1")
 
-# Estimation Time of Completion: > 5 mins and are commented out for now.
+# Estimation Time of Completion: > 5 mins
 # 2. This step will add a new column called sentiments to classify the reviews based on four scores: 
 # neutrality, positivity, negativity and overall scores that descrbies the previous three scores.
 hotel_reviews_df_cleaned = hotel_reviews_df_cleaned[["review", "is_bad_review", "cleaned_review"]]
@@ -82,18 +88,18 @@ print("End of Task 4")
 # Create a TfidfVectorizer with a minimum document frequency of 10
 tfidf = TfidfVectorizer(min_df=10)
 
-# # Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
+# Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
 hotel_reviews_df_cleaned["cleaned_review"] = hotel_reviews_df_cleaned["cleaned_review"].fillna("")
 tfidf_result = tfidf.fit_transform(hotel_reviews_df_cleaned["cleaned_review"])
 
 
-# # Convert the result to a pandas DataFrame with the feature names as column headers
+# Convert the result to a pandas DataFrame with the feature names as column headers
 tfidf_df = pd.DataFrame(tfidf_result.toarray(), columns=tfidf.get_feature_names_out())
 
-# # Add a prefix to each column name for identification purposes
+# Add a prefix to each column name for identification purposes
 tfidf_df = tfidf_df.add_prefix('word_')
 
-# # Concatenate the original dataframe with the TF-IDF matrix
+# Concatenate the original dataframe with the TF-IDF matrix
 hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, tfidf_df], axis=1)
 
 print("End of Task 5")
@@ -103,8 +109,8 @@ print("End of Task 5")
 total_Bad_Reviews = "is_bad_review"
 results = hotel_reviews_df_cleaned[total_Bad_Reviews].value_counts()
 
-#Get total reviews in the data set
-#Query the bad reviews / total reviews * 100% to get percentage of bad reviews same for good reviews
+# Get total reviews in the data set
+# Query the bad reviews / total reviews * 100% to get percentage of bad reviews same for good reviews
 totalReviews = results[0] + results[1]
 goodReview = results[0]
 badReview = results[1]
@@ -122,10 +128,10 @@ print(results)
 print("End of Task 6")
 
 #7. Interested to find out the most used words in the reviews, regardless of good or bad
-#This helps the client to see what is the sentiment about the hotel among previous guest
-#Examples are "Expensive" which could indicate the per night prices are too high and or
-#Small, which could indicate the rooms are too small. 
-#Further investigation would be needed
+# This helps the client to see what is the sentiment about the hotel among previous guest
+# Examples are "Expensive" which could indicate the per night prices are too high and or
+# Small, which could indicate the rooms are too small. 
+# Further investigation would be needed
 def generateWordCloud(data, title = None):
     
     interestedData = str(data)
@@ -153,7 +159,7 @@ criteria = "review"
 allHotelData = hotel_reviews_df_cleaned[criteria]
 generateWordCloud(allHotelData)
 
-#7. Get the first 10 highest reviews with a positive Sentiment
+# Get the first 10 highest reviews with a positive Sentiment
 totalNumOfWords = hotel_reviews_df_cleaned["num_words"] 
 totalNumOfWordsAboveFive = totalNumOfWords >= 5
 
@@ -171,6 +177,125 @@ getTotalNumOfWordsAboveFive = hotel_reviews_df_cleaned[totalNumOfWordsAboveFive]
 getSortedPositiveValue = getTotalNumOfWordsAboveFive.sort_values("neg", ascending = False)[["review", "neg"]].head(10)
 print(getSortedPositiveValue)
 
+# To show good reviews only
+for label, is_good_review in [("Good reviews", 0)]:
+    reviewToPlot = is_good_review
+    goodReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[goodReview]
+    
+    sns.displot(group['compound'], label = label, kind = "kde")
+    sns.histplot(group['compound'], label = label, kde = True, color = "green", fill = False)
+
 print("End of Task 8")
+
+#9. To show Bad reviews only
+for label, is_bad_review in [("Bad reviews", 1)]:
+    reviewToPlot = is_bad_review
+    badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[badReview]
+    
+    sns.displot(group['compound'], label = label, kind = "kde")
+    sns.histplot(group['compound'], label = label, kde = True, color = "red", fill = False)
+
+print("End of Task 9")
+
+#10. Plot sentiment distribution for positive and negative reviews 
+for label, is_bad_review in [("Good reviews", 0), ("Bad reviews", 1)]:
+    reviewToPlot = is_bad_review
+    badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[badReview]
+    
+    sns.histplot(group['compound'], kde = True, label = label, color = "blue", fill = False)
+    sns.displot(group['compound'], label = label, kind = "kde", color = "red", fill = False)
+    
+for label, is_bad_review in [("Good reviews", 0)]:
+    reviewToPlot = is_bad_review
+    badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[badReview]
+    
+sns.distplot(group['compound'], hist = False, label = label,  color = "green")
+
+print("End of Task 10")
+
+#11. Modeling all Reviewers Score
+# Feature selection
+label = "is_bad_review"
+ignore = [label, "review", "cleaned_review"]
+
+trainingData = [i for i in hotel_reviews_df_cleaned.columns if i not in ignore]
+
+# Split the data into train and test
+trainX, testX, trainY, testY = train_test_split(hotel_reviews_df_cleaned[trainingData],
+                                                    hotel_reviews_df_cleaned[label], 
+                                                    test_size = 0.20, random_state = 42)
+
+# Use a random forest classifier to train the model
+rfc = RandomForestClassifier(n_estimators = 100, random_state = 42)
+rfc.fit(trainX, trainY)
+
+print("End of Task 11")
+
+#12. Show importance
+importances = pd.DataFrame({"Training Data": trainingData, "Importance Score": rfc.feature_importances_}).sort_values("Importance Score", ascending = False)
+importances.head(30)
+
+print("End of Task 12")
+
+#13. ROC Curve
+probY = rfc.predict_proba(testX)
+predY = probY[:, 1]
+falsePositiveRate, truePositiveRate, thresholds = roc_curve(testY, predY, pos_label = 1)
+
+rocAreaUnderCurve = roc_auc_score(testY, predY)
+
+plt.figure(figsize=(15, 10))
+lw = 2
+plt.plot(falsePositiveRate, 
+         truePositiveRate, 
+         color = 'red',
+         lw = lw, 
+         label ='ROC curve (area = %0.2f)' % rocAreaUnderCurve)
+
+plt.plot([0, 1], 
+         [0, 1], 
+         lw = lw, 
+         linestyle ='--')
+
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.0])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic Graph')
+plt.legend(loc = "upper left")
+plt.show()
+
+#Draw the Precision Recall Curve
+averagePrecision = average_precision_score(testY, predY)
+
+precision, recall, _ = precision_recall_curve(testY, predY)
+
+plt.figure(1, 
+           figsize=(15, 10))
+
+plt.step(recall, 
+         precision, 
+         color ='black', 
+         alpha = 0.2, 
+         where ='post')
+
+plt.fill_between(recall, 
+                 precision, 
+                 alpha = 0.2, 
+                 color ='red', 
+                 step ='post')
+
+plt.xlabel('Recall Rate')
+plt.ylabel('Precision Rate')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('Precision-Recall curve: Average Precision = {0:0.2f}'.format(averagePrecision))
+plt.show()
+
+print("End of Task 13")
 
 print("End of file")
