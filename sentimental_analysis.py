@@ -10,10 +10,16 @@ import matplotlib.pyplot as plt
 from gensim.test.utils import common_texts
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
+import seaborn as sns
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.metrics import average_precision_score, precision_recall_curve
+
 
 # Commands to run in terminal: 
 # pip install google-cloud-bigquery
-# pip install pandas
+# pip install pandas 
 # pip install gensim
 # pip install wordcloud
 
@@ -171,6 +177,123 @@ getTotalNumOfWordsAboveFive = hotel_reviews_df_cleaned[totalNumOfWordsAboveFive]
 getSortedPositiveValue = getTotalNumOfWordsAboveFive.sort_values("neg", ascending = False)[["review", "neg"]].head(10)
 print(getSortedPositiveValue)
 
+# To show good reviews only
+for label, is_good_review in [("Good reviews", 0)]:
+    reviewToPlot = is_good_review
+    goodReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[goodReview]
+    
+    sns.displot(group['compound'], label = label, kind = "kde")
+    sns.histplot(group['compound'], label = label, kde = True, color = "green", fill = False)
 print("End of Task 8")
+
+# To show Bad reviews only
+for label, is_bad_review in [("Bad reviews", 1)]:
+    reviewToPlot = is_bad_review
+    badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[badReview]
+    
+    sns.displot(group['compound'], label = label, kind = "kde")
+    sns.histplot(group['compound'], label = label, kde = True, color = "red", fill = False)
+print("End of Task 9")
+
+#Plot sentiment distribution for positive and negative reviews 
+for label, is_bad_review in [("Good reviews", 0), ("Bad reviews", 1)]:
+    reviewToPlot = is_bad_review
+    badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[badReview]
+    
+    sns.histplot(group['compound'], kde = True, label = label, color = "blue", fill = False)
+    sns.displot(group['compound'], label = label, kind = "kde", color = "red", fill = False)
+    
+for label, is_bad_review in [("Good reviews", 0)]:
+    reviewToPlot = is_bad_review
+    badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
+    group = hotel_reviews_df_cleaned[badReview]
+    
+sns.distplot(group['compound'], hist = False, label = label,  color = "green")
+print("End of Task 10")
+
+# Modeling all Reviewers Score
+
+# Feature selection
+label = "is_bad_review"
+ignore = [label, "review", "cleaned_review"]
+
+trainingData = [i for i in hotel_reviews_df_cleaned.columns if i not in ignore]
+
+# split the data into train and test
+trainX, testX, trainY, testY = train_test_split(hotel_reviews_df_cleaned[trainingData],
+                                                    hotel_reviews_df_cleaned[label], 
+                                                    test_size = 0.20, random_state = 42)
+print("End of Task 11")
+
+#Use a random forest classifier to train the model
+rfc = RandomForestClassifier(n_estimators = 100, random_state = 42)
+rfc.fit(trainX, trainY)
+
+#12. Show importance
+importances = pd.DataFrame({"Training Data": trainingData, "Importance Score": rfc.feature_importances_}).sort_values("Importance Score", ascending = False)
+importances.head(30)
+print("End of Task 12")
+
+#13. ROC Curve
+
+probY = rfc.predict_proba(testX)
+predY = probY[:, 1]
+falsePositiveRate, truePositiveRate, thresholds = roc_curve(testY, predY, pos_label = 1)
+
+rocAreaUnderCurve = roc_auc_score(testY, predY)
+
+plt.figure(figsize=(15, 10))
+lw = 2
+plt.plot(falsePositiveRate, 
+         truePositiveRate, 
+         color = 'red',
+         lw = lw, 
+         label ='ROC curve (area = %0.2f)' % rocAreaUnderCurve)
+
+plt.plot([0, 1], 
+         [0, 1], 
+         lw = lw, 
+         linestyle ='--')
+
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.0])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic Graph')
+plt.legend(loc = "upper left")
+plt.show()
+print("End of Task 13")
+
+#Draw the Precision Recall Curve
+
+averagePrecision = average_precision_score(testY, predY)
+
+precision, recall, _ = precision_recall_curve(testY, predY)
+
+plt.figure(1, 
+           figsize=(15, 10))
+
+plt.step(recall, 
+         precision, 
+         color ='black', 
+         alpha = 0.2, 
+         where ='post')
+
+plt.fill_between(recall, 
+                 precision, 
+                 alpha = 0.2, 
+                 color ='red', 
+                 step ='post')
+
+plt.xlabel('Recall Rate')
+plt.ylabel('Precision Rate')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('Precision-Recall curve: Average Precision = {0:0.2f}'.format(averagePrecision))
+plt.show()
+print("End of Task 13")
 
 print("End of file")
