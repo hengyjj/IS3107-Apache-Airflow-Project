@@ -134,9 +134,18 @@ with DAG(
             review = " ".join(review)
             return (review) 
 
-        #7. Clean reviews
-        hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(lambda x: clean_review(x))
-                
+        # 7. Downloading Popular package from NLTK
+        nltk.download('popular')
+
+        # 8. Clean reviews 
+        hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(
+            lambda x: clean_review(x))
+        
+        # Add a row ID column
+        # IMPORTANT, MUST DO THIS, if not when we retrieved data from bigquery, we can't get the same ordering, then the word cloud will be different
+        hotel_reviews_df.reset_index(drop=True, inplace=True)
+        hotel_reviews_df['row_id'] = hotel_reviews_df.index + 1
+        
         # Write the cleaned data to a new CSV file
         hotel_reviews_df.to_csv(
             f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
