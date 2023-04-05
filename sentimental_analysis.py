@@ -29,15 +29,22 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = f'{home_dir}/is3107Project.json'
 
 client = bigquery.Client()
 table_ref = client.dataset("is3107_projectv2").table("is3107_projecv2")
-rows = client.list_rows(table_ref)
-data = [row for row in rows]
-columns = ["Hotel_Address", "Additional_Number_of_Scoring", "Review_Date", "Average_Score", 
-                          "Hotel_Name", "Reviewer_Nationality", "Negative_Review", "Review_Total_Negative_Word_Counts", 
-                          "Total_Number_of_Reviews", "Positive_Review", "Review_Total_Positive_Word_Counts", 
-                          "Total_Number_of_Reviews_Reviewer_Has_Given", "Reviewer_Score", "Tags", "days_since_review", 
-                          "lat", "lng", "review", "is_bad_review", "cleaned_review"]
+# Load the entire table data into a pandas dataframe
+hotel_reviews_df_cleaned = client.query(f"SELECT * FROM {table_ref}").to_dataframe()
 
-hotel_reviews_df_cleaned = pd.DataFrame.from_records(data, columns=columns)
+# sort retrieved bigquery dataset by row_id ascending order so that it will be the EXACT same ordering with cleaned dataset
+# this is IMPORTANT as ordering of data will affect how word cloud looks like, even if the data are the same!
+hotel_reviews_df_cleaned = hotel_reviews_df_cleaned.sort_values('row_id', ascending=True) 
+# rows = client.list_rows(table_ref)
+# data = [row for row in rows]
+# columns = ["Hotel_Address", "Additional_Number_of_Scoring", "Review_Date", "Average_Score", 
+#                           "Hotel_Name", "Reviewer_Nationality", "Negative_Review", "Review_Total_Negative_Word_Counts", 
+#                           "Total_Number_of_Reviews", "Positive_Review", "Review_Total_Positive_Word_Counts", 
+#                           "Total_Number_of_Reviews_Reviewer_Has_Given", "Reviewer_Score", "Tags", "days_since_review", 
+#                           "lat", "lng", "review", "is_bad_review", "cleaned_review"]
+
+# hotel_reviews_df_cleaned = pd.DataFrame.from_records(data, columns=columns)
+hotel_reviews_df_cleaned.to_csv("cleaned.csv", index=False)
 
 print("End of Task 1")
 
