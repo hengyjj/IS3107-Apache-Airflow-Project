@@ -38,6 +38,7 @@ columns = ["Hotel_Address", "Additional_Number_of_Scoring", "Review_Date", "Aver
                           "lat", "lng", "review", "is_bad_review", "cleaned_review"]
 
 hotel_reviews_df_cleaned = pd.DataFrame.from_records(data, columns=columns)
+hotel_reviews_df_cleaned = hotel_reviews_df_cleaned[["review", "is_bad_review", "cleaned_review"]]
 
 print("End of Task 1")
 
