@@ -67,52 +67,8 @@ hotel_reviews_df_cleaned["num_words"] = hotel_reviews_df_cleaned["review"].apply
 
 print("End of Task 3")
 
-#4. Create doc2vec vector columns
-# It is using the gensim library to create a Doc2Vec model and apply it to the cleaned review texts, 
-# then concatenating the resulting vectors with the original DataFrame to create new columns.
-# Doc2Vec is an unsupervised machine learning algorithm that learns fixed-length vector representations 
-# (embeddings) from variable-length pieces of texts, such as documents, paragraphs, or sentences. 
-# These embeddings can be used for tasks like text classification, clustering, and similarity matching. 
-# Doc2Vec is an extension of Word2Vec, which learns embeddings for individual words. 
-# Unlike Word2Vec, Doc2Vec learns a separate embedding for each document, while still taking into account 
-# the words in the document.
 
-# Create tagged documents
-tagged_documents = [TaggedDocument(str(review).split(" "), [i]) for i, review in enumerate(hotel_reviews_df_cleaned["cleaned_review"])]
-
-#Train the Doc2Vec model
-model = Doc2Vec(tagged_documents, vector_size=5, window=2, min_count=1, workers=4)
-
-#Infer vectors for each document
-doc2vec_df = pd.DataFrame([model.infer_vector(str(review).split(" ")) for review in hotel_reviews_df_cleaned["cleaned_review"]])
-doc2vec_df.columns = ["doc2vec_vector_" + str(i) for i in range(doc2vec_df.shape[1])]
-
-# Concatenate the Doc2Vec vector with the original df
-hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, doc2vec_df], axis=1)
-
-print("End of Task 4")
-
-#5. Create TF-IDFS columns (sklearn.__version__ >= 1.0.x by "pip install --upgrade scikit-learn")
-# Create a TfidfVectorizer with a minimum document frequency of 10
-tfidf = TfidfVectorizer(min_df=10)
-
-# Fit the vectorizer to the cleaned reviews and transform the text into a matrix of TF-IDF features
-hotel_reviews_df_cleaned["cleaned_review"] = hotel_reviews_df_cleaned["cleaned_review"].fillna("")
-tfidf_result = tfidf.fit_transform(hotel_reviews_df_cleaned["cleaned_review"])
-
-
-# Convert the result to a pandas DataFrame with the feature names as column headers
-tfidf_df = pd.DataFrame(tfidf_result.toarray(), columns=tfidf.get_feature_names_out())
-
-# Add a prefix to each column name for identification purposes
-tfidf_df = tfidf_df.add_prefix('word_')
-
-# Concatenate the original dataframe with the TF-IDF matrix
-hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, tfidf_df], axis=1)
-
-print("End of Task 5")
-
-# 6. Interested to find out the percentage of the dataset that is considered a bad review and good review
+# 4. Interested to find out the percentage of the dataset that is considered a bad review and good review
 # This will help us see whether the dataset is balanced or imbalance, and further understand the skewness
 total_Bad_Reviews = "is_bad_review"
 results = hotel_reviews_df_cleaned[total_Bad_Reviews].value_counts()
@@ -133,9 +89,9 @@ print(results)
 #From this we can see that the only 4.3% of the reviews given are bad and 95.7% are good.
 #Dataset is not balanced but also can be used an indicator for client to know that they are doing a good job
 
-print("End of Task 6")
+print("End of Task 4")
 
-#7. Interested to find out the most used words in the reviews, regardless of good or bad
+#5. Interested to find out the most used words in the reviews, regardless of good or bad
 # This helps the client to see what is the sentiment about the hotel among previous guest
 # Examples are "Expensive" which could indicate the per night prices are too high and or
 # Small, which could indicate the rooms are too small. 
@@ -175,9 +131,7 @@ getTotalNumOfWordsAboveFive = hotel_reviews_df_cleaned[totalNumOfWordsAboveFive]
 getSortedPositiveValue = getTotalNumOfWordsAboveFive.sort_values("pos", ascending = False)[["review", "pos"]].head(10)
 print(getSortedPositiveValue)
 
-print("End of Task 7")
-
-#8. Get the first 10 highest reviews with a Negative Sentiment
+#Get the first 10 highest reviews with a Negative Sentiment
 totalNumOfWords = hotel_reviews_df_cleaned["num_words"]
 totalNumOfWordsAboveFive = totalNumOfWords >= 5
 
@@ -185,7 +139,9 @@ getTotalNumOfWordsAboveFive = hotel_reviews_df_cleaned[totalNumOfWordsAboveFive]
 getSortedPositiveValue = getTotalNumOfWordsAboveFive.sort_values("neg", ascending = False)[["review", "neg"]].head(10)
 print(getSortedPositiveValue)
 
-# To show good reviews only
+print("End of Task 5")
+
+#6. To show good reviews only
 for label, is_good_review in [("Good reviews", 0)]:
     reviewToPlot = is_good_review
     goodReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
@@ -194,9 +150,9 @@ for label, is_good_review in [("Good reviews", 0)]:
     sns.displot(group['compound'], label = label, kind = "kde")
     sns.histplot(group['compound'], label = label, kde = True, color = "green", fill = False)
 
-print("End of Task 8")
+print("End of Task 6")
 
-#9. To show Bad reviews only
+#7. To show bad reviews only
 for label, is_bad_review in [("Bad reviews", 1)]:
     reviewToPlot = is_bad_review
     badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
@@ -205,9 +161,9 @@ for label, is_bad_review in [("Bad reviews", 1)]:
     sns.displot(group['compound'], label = label, kind = "kde")
     sns.histplot(group['compound'], label = label, kde = True, color = "red", fill = False)
 
-print("End of Task 9")
+print("End of Task 7")
 
-#10. Plot sentiment distribution for positive and negative reviews 
+#8. Plot sentiment distribution for positive and negative reviews 
 for label, is_bad_review in [("Good reviews", 0), ("Bad reviews", 1)]:
     reviewToPlot = is_bad_review
     badReview = hotel_reviews_df_cleaned['is_bad_review'] == reviewToPlot
@@ -223,9 +179,9 @@ for label, is_bad_review in [("Good reviews", 0)]:
     
 sns.distplot(group['compound'], hist = False, label = label,  color = "green")
 
-print("End of Task 10")
+print("End of Task 8")
 
-#11. Modeling all Reviewers Score
+#9. Modeling all Reviewers Score
 # Feature selection
 label = "is_bad_review"
 ignore = [label, "review", "cleaned_review"]
@@ -241,15 +197,15 @@ trainX, testX, trainY, testY = train_test_split(hotel_reviews_df_cleaned[trainin
 rfc = RandomForestClassifier(n_estimators = 100, random_state = 42)
 rfc.fit(trainX, trainY)
 
-print("End of Task 11")
+print("End of Task 9")
 
-#12. Show importance
+#10. Show importance
 importances = pd.DataFrame({"Training Data": trainingData, "Importance Score": rfc.feature_importances_}).sort_values("Importance Score", ascending = False)
 importances.head(30)
 
-print("End of Task 12")
+print("End of Task 10")
 
-#13. ROC Curve
+#11. ROC Curve
 probY = rfc.predict_proba(testX)
 predY = probY[:, 1]
 falsePositiveRate, truePositiveRate, thresholds = roc_curve(testY, predY, pos_label = 1)
@@ -304,6 +260,6 @@ plt.xlim([0.0, 1.0])
 plt.title('Precision-Recall curve: Average Precision = {0:0.2f}'.format(averagePrecision))
 plt.show()
 
-print("End of Task 13")
+print("End of Task 11")
 
 print("End of file")
