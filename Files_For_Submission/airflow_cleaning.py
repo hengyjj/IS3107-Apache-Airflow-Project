@@ -16,6 +16,8 @@ from nltk import pos_tag
 from nltk.corpus import stopwords
 from nltk.tokenize import WhitespaceTokenizer
 from nltk.stem import WordNetLemmatizer
+from gensim.test.utils import common_texts
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 
 default_args = {
     'owner': 'airflow',
@@ -189,6 +191,47 @@ with DAG(
 
 # ---------------------------- End of Transfer to Big Query -----------------------------
       
+# ---------------------------- Start of ML Training Model (Doc2Vec) -----------------------------
+# Create doc2vec vector columns
+# It is using the gensim library to create a Doc2Vec model and apply it to the cleaned review texts, 
+# then concatenating the resulting vectors with the original DataFrame to create new columns.
+# Doc2Vec is an unsupervised machine learning algorithm that learns fixed-length vector representations 
+# (embeddings) from variable-length pieces of texts, such as documents, paragraphs, or sentences. 
+# These embeddings can be used for tasks like text classification, clustering, and similarity matching. 
+# Doc2Vec is an extension of Word2Vec, which learns embeddings for individual words. 
+# Unlike Word2Vec, Doc2Vec learns a separate embedding for each document, while still taking into account 
+# the words in the document.
+
+    def doc2VecMachineLearningTraining(**kwangs):
+        # Retrieving data 
+        home_dir = os.environ['HOME']
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = f'{home_dir}/is3107Project.json'
+        client = bigquery.Client()
+        table_ref = client.dataset("is3107_projectv2").table("is3107_projecv2")
+
+        # Load the entire table data into a pandas dataframe
+        hotel_reviews_df_cleaned = client.query(f"SELECT * FROM {table_ref}").to_dataframe()
+
+        # Sort retrieved bigquery dataset by row_id ascending order so that it will be the EXACT same ordering with cleaned dataset
+        # This is IMPORTANT as ordering of data will affect how word cloud looks like, even if the data are the same!
+        hotel_reviews_df_cleaned = hotel_reviews_df_cleaned.sort_values('row_id', ascending=True) 
+
+        # Create tagged documents
+        tagged_documents = [TaggedDocument(str(review).split(" "), [i]) for i, review in enumerate(hotel_reviews_df_cleaned["cleaned_review"])]
+
+        #Train the Doc2Vec model
+        model = Doc2Vec(tagged_documents, vector_size=5, window=2, min_count=1, workers=4)
+
+        #Infer vectors for each document
+        doc2vec_df = pd.DataFrame([model.infer_vector(str(review).split(" ")) for review in hotel_reviews_df_cleaned["cleaned_review"]])
+        doc2vec_df.columns = ["doc2vec_vector_" + str(i) for i in range(doc2vec_df.shape[1])]
+
+        # Concatenate the Doc2Vec vector with the original df
+        hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, doc2vec_df], axis=1)
+
+        print("Finish Doc2Vec ML Training Model")
+
+# ---------------------------- End of ML Training Model (Doc2Vec) -----------------------------
 
 # ---------------------------- Start of TASKS -----------------------------
 
@@ -202,7 +245,6 @@ with DAG(
         python_callable=transform,
     )
 
-
     uploadToCloudStorageTask = PythonOperator(
         task_id='uploadToCloudStorage',
         python_callable=uploadToCloudStorage,
@@ -213,8 +255,12 @@ with DAG(
         python_callable=transferUploadedCSVToBigQuery,
     )
 
+    doc2VecMachineLearningTrainingTask = PythonOperator(
+        task_id='doc2VecMachineLearningTraining',
+        python_callable=doc2VecMachineLearningTraining,
+    )
+
     # ---------------------------- END of TASKS -----------------------------
 
-
     # Finaly, execute the tasks one by one
-    download_dataset >> extract_task >> transform_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask
+    download_dataset >> extract_task >> transform_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask >> doc2VecMachineLearningTrainingTask
