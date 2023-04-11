@@ -16,6 +16,8 @@ from nltk import pos_tag
 from nltk.corpus import stopwords
 from nltk.tokenize import WhitespaceTokenizer
 from nltk.stem import WordNetLemmatizer
+from gensim.test.utils import common_texts
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 
 default_args = {
     'owner': 'airflow',
@@ -40,7 +42,7 @@ with DAG(
 
      # Load the service account credentials from the JSON key file
     my_credentials = service_account.Credentials.from_service_account_file(
-        f'{home_dir}/is3107_GCP.json'
+        f'{home_dir}/is3107Project.json'
     )
 
     download_dataset = BashOperator(
@@ -65,100 +67,93 @@ with DAG(
         ti = kwargs['ti']
         hotel_reviews_df = pd.read_csv(f'{home_dir}/Hotel_Reviews.csv')
 
-        # 3. Append the positive and negative reviews
-        hotel_reviews_df["review"] = hotel_reviews_df["Negative_Review"] + \
-            hotel_reviews_df["Positive_Review"]
+        #1. Append the positive and negative reviews
+        hotel_reviews_df["review"] = hotel_reviews_df["Negative_Review"] + hotel_reviews_df["Positive_Review"]
 
-        # 4. Assign the label to the newly created positive and negative reviews (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html)
+        #2. Assign the label to the newly created positive and negative reviews (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html)
         def make_review(row):
             if row["Reviewer_Score"] < 5:
                 return 1
             else:
                 return 0
 
-        hotel_reviews_df["is_bad_review"] = hotel_reviews_df.apply(
-            make_review, axis=1)
+        hotel_reviews_df["is_bad_review"] = hotel_reviews_df.apply(make_review, axis=1)
 
-        # 5. Speed up computations by sampling
-        # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sample.html
-        hotel_reviews_df = hotel_reviews_df.sample(
-            frac=0.1, replace=False, random_state=42)
+        #3. Speed up computations by sampling
+        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sample.html
+        hotel_reviews_df = hotel_reviews_df.sample(frac = 0.1, replace = False, random_state=42)
 
-        # 6. Cleaning reviews to exclude "No Negative" & "No Positive"
+        #4. Cleaning reviews to exclude "No Negative" & "No Positive"
         hotel_reviews_df["review"] = hotel_reviews_df["review"].replace(
             {"No Negative|No Positive": ""}, regex=True)
 
-        # 7. Classifying reviews based on WordNet Part-of-speech (POS) tag
+        #5. Classifying reviews based on WordNet Part-of-speech (POS) tag
         def get_wordnet_pos(pos_tag):
             if pos_tag.startswith('J'):
                 return wordnet.ADJ
-
+            
             elif pos_tag.startswith('V'):
                 return wordnet.VERB
-
+            
             elif pos_tag.startswith('N'):
                 return wordnet.NOUN
-
+            
             elif pos_tag.startswith('R'):
                 return wordnet.ADV
-
+            
             else:
                 return wordnet.NOUN
 
-        # 8. Cleaning reviews
+        #6. Cleaning reviews
         def clean_review(review):
-            # Convert all reviews to lowercase
+            #Convert all reviews to lowercase
             review = review.lower()
 
-            # Removing punctuation
+            #Removing punctuation
             review = review.replace(string.punctuation, '')
             review = review.split(' ')
 
-            # Filtering out digits
-            review = [word for word in review if not any(
-                c.isnumeric() for c in word)]
+            #Filtering out digits
+            review = [word for word in review if not any(c.isnumeric() for c in word)]
 
-            # Removing stop words such as a, an, the, is, are, was, were, and etc.
+            #Removing stop words such as a, an, the, is, are, was, were, and etc.
             stop = stopwords.words('english')
             review = [word for word in review if word not in stop]
 
-            # Removing empty words
+            #Removing empty words
             review = [word for word in review if len(word) > 0]
 
-            # POS tag
+            #POS tag
             pos_tags = pos_tag(review)
 
-            # Lemmatise words E.g. Running, Ran, Run -> Run (Base form)
-            review = [WordNetLemmatizer().lemmatize(
-                t[0], get_wordnet_pos(t[1])) for t in pos_tags]
+            #Lemmatise words E.g. Running, Ran, Run -> Run (Base form)
+            review = [WordNetLemmatizer().lemmatize(t[0], get_wordnet_pos(t[1])) for t in pos_tags]
 
-            # Keeping words that has more than 1 letter
+            #Keeping words that has more than 1 letter
             review = [word for word in review if len(word) > 1]
 
-            # Join all string
+            #Join all string
             review = " ".join(review)
-            return (review)
+            return (review) 
 
-        # 9. Downloading Popular package from NLTK
+        # 7. Downloading Popular package from NLTK
         nltk.download('popular')
 
-        # 10. Clean reviews (Got error)
+        # 8. Clean reviews 
         hotel_reviews_df["cleaned_review"] = hotel_reviews_df["review"].apply(
             lambda x: clean_review(x))
+        
+        # Add a row ID column
+        # IMPORTANT, MUST DO THIS, if not when we retrieved data from bigquery, we can't get the same ordering, then the word cloud will be different
+        hotel_reviews_df.reset_index(drop=True, inplace=True)
+        hotel_reviews_df['row_id'] = hotel_reviews_df.index + 1
+        
+        # Write the cleaned data to a new CSV file
+        hotel_reviews_df.to_csv(
+            f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
 
         print("Finish transforming")
 # ---------------------------- End of Transform -----------------------------
-
-# ---------------------------- Start of Load -----------------------------
-    def load(**kwargs):
-        hotel_reviews_cleaned = pd.read_csv(f'{home_dir}/Hotel_Reviews.csv')
-
-        # Write the cleaned data to a new CSV file
-        hotel_reviews_cleaned.to_csv(
-            f'{home_dir}/Hotel_Reviews_Cleaned.csv', index=False)
-
-        print("Finish loading")
-# ---------------------------- End of Load -----------------------------
 
     
 # ---------------------------- Start of upload to cloud storage -----------------------------
@@ -167,7 +162,7 @@ with DAG(
         # Connect to Google Cloud Storage
         storage_client = storage.Client(credentials=my_credentials)
         # Get the bucket
-        bucket = storage_client.get_bucket('is3107_jw_test')
+        bucket = storage_client.get_bucket('is3107-project-group8')
 
         # Upload the CSV file
         blob = bucket.blob('Hotel_Reviews_Cleaned.csv')
@@ -181,21 +176,62 @@ with DAG(
         # Connect to Google Cloud BigQuery
         bigquery_client = bigquery.Client(credentials=my_credentials)
         # Get the dataset
-        dataset = bigquery_client.dataset('is3107_jw_dataset')
+        dataset = bigquery_client.dataset('is3107_projectv2')
         # Create the table
-        table = dataset.table('is3107_jw_table')
+        table = dataset.table('is3107_projecv2')
 
         # Load the CSV file into the table
         job_config = bigquery.LoadJobConfig(
             autodetect=True, source_format=bigquery.SourceFormat.CSV, write_disposition='WRITE_TRUNCATE'
         )
-        job = bigquery_client.load_table_from_uri('gs://is3107_jw_test/Hotel_Reviews_Cleaned.csv', table, job_config=job_config)
+        job = bigquery_client.load_table_from_uri('gs://is3107-project-group8/Hotel_Reviews_Cleaned.csv', table, job_config=job_config)
         job.result()
         destination_table = bigquery_client.get_table(table)  # Make an API request.
         print("Loaded {} rows into bigquery from uploaded cleaned csv data file in cloud storage.".format(destination_table.num_rows))
 
 # ---------------------------- End of Transfer to Big Query -----------------------------
       
+# ---------------------------- Start of ML Training Model (Doc2Vec) -----------------------------
+# Create doc2vec vector columns
+# It is using the gensim library to create a Doc2Vec model and apply it to the cleaned review texts, 
+# then concatenating the resulting vectors with the original DataFrame to create new columns.
+# Doc2Vec is an unsupervised machine learning algorithm that learns fixed-length vector representations 
+# (embeddings) from variable-length pieces of texts, such as documents, paragraphs, or sentences. 
+# These embeddings can be used for tasks like text classification, clustering, and similarity matching. 
+# Doc2Vec is an extension of Word2Vec, which learns embeddings for individual words. 
+# Unlike Word2Vec, Doc2Vec learns a separate embedding for each document, while still taking into account 
+# the words in the document.
+
+    def doc2VecMachineLearningTraining(**kwangs):
+        # Retrieving data 
+        home_dir = os.environ['HOME']
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = f'{home_dir}/is3107Project.json'
+        client = bigquery.Client()
+        table_ref = client.dataset("is3107_projectv2").table("is3107_projecv2")
+
+        # Load the entire table data into a pandas dataframe
+        hotel_reviews_df_cleaned = client.query(f"SELECT * FROM {table_ref}").to_dataframe()
+
+        # Sort retrieved bigquery dataset by row_id ascending order so that it will be the EXACT same ordering with cleaned dataset
+        # This is IMPORTANT as ordering of data will affect how word cloud looks like, even if the data are the same!
+        hotel_reviews_df_cleaned = hotel_reviews_df_cleaned.sort_values('row_id', ascending=True) 
+
+        # Create tagged documents
+        tagged_documents = [TaggedDocument(str(review).split(" "), [i]) for i, review in enumerate(hotel_reviews_df_cleaned["cleaned_review"])]
+
+        #Train the Doc2Vec model
+        model = Doc2Vec(tagged_documents, vector_size=5, window=2, min_count=1, workers=4)
+
+        #Infer vectors for each document
+        doc2vec_df = pd.DataFrame([model.infer_vector(str(review).split(" ")) for review in hotel_reviews_df_cleaned["cleaned_review"]])
+        doc2vec_df.columns = ["doc2vec_vector_" + str(i) for i in range(doc2vec_df.shape[1])]
+
+        # Concatenate the Doc2Vec vector with the original df
+        hotel_reviews_df_cleaned = pd.concat([hotel_reviews_df_cleaned, doc2vec_df], axis=1)
+
+        print("Finish Doc2Vec ML Training Model")
+
+# ---------------------------- End of ML Training Model (Doc2Vec) -----------------------------
 
 # ---------------------------- Start of TASKS -----------------------------
 
@@ -209,11 +245,6 @@ with DAG(
         python_callable=transform,
     )
 
-    load_task = PythonOperator(
-        task_id='load',
-        python_callable=load,
-    )
-
     uploadToCloudStorageTask = PythonOperator(
         task_id='uploadToCloudStorage',
         python_callable=uploadToCloudStorage,
@@ -224,8 +255,12 @@ with DAG(
         python_callable=transferUploadedCSVToBigQuery,
     )
 
+    doc2VecMachineLearningTrainingTask = PythonOperator(
+        task_id='doc2VecMachineLearningTraining',
+        python_callable=doc2VecMachineLearningTraining,
+    )
+
     # ---------------------------- END of TASKS -----------------------------
 
-
     # Finaly, execute the tasks one by one
-    download_dataset >> extract_task >> transform_task >> load_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask
+    download_dataset >> extract_task >> transform_task >> uploadToCloudStorageTask >> transferUploadedCSVToBigQueryTask >> doc2VecMachineLearningTrainingTask
