@@ -1,5 +1,7 @@
-# IS3107_Project
+# IS3107_Project AY2022/2023 Semester 2
 Hotel Review Analysis
+Prepared By: Group 8
+Group Member: Alwin Ng Jun Wei, Heng Yi Jie, Lee Jia Wei, Lim Wee Kiat, Tan Jun Bin
 
 ## Folder/File Structure
 1. Airflow File: airflow_cleaning.py
@@ -10,10 +12,10 @@ Hotel Review Analysis
 6. Archived folder contains files that are either duplicates or incomplete codes of the final submission files.
 
 ## Steps to get airflow pipeline working
-1. create new virtual env
-2. go inside virtual env
-3. install airflow using the command provided in "airflow_installation_commands.txt"
-4. then install required packages for our project running "pip install -r requirements.txt"
-5. start airflow server by running "airflow webserver --port 8081 -D
-6. then run command "airflow scheduler"
-7. run your airflow DAG task.
+1. Create new virtual env.
+2. Go inside virtual env.
+3. Install Airflow using the command provided in "airflow_installation_commands.txt"
+4. Install required packages for our project running "pip install -r requirements.txt"
+5. Start Airflow server by running "airflow webserver --port 8081 -D"
+6. Run command "airflow scheduler"
+7. Run your airflow DAG task.
