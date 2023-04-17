@@ -1,6 +1,11 @@
 # IS3107_Project
 Hotel Review Analysis
 
+## Files for Submission
+1. Airflow File: airflow_cleaning.py
+2. Machine Learning: sentimental_analysis.py
+3. Data Visualisation: data_visualisation_cleaned_with_tags.ipynb
+
 ## Steps to get airflow pipeline working
 1. create new virtual env
 2. go inside virtual env
