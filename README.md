@@ -1,5 +1,7 @@
 # IS3107_Project AY2022/2023 Semester 2
 Hotel Review Analysis
+
+## Information
 Prepared By: Group 8
 Group Member: Alwin Ng Jun Wei, Heng Yi Jie, Lee Jia Wei, Lim Wee Kiat, Tan Jun Bin
 
