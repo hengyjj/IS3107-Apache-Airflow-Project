@@ -2,8 +2,8 @@
 Hotel Review Analysis
 
 ## Information
-Prepared By: Group 8
-Group Member: Alwin Ng Jun Wei, Heng Yi Jie, Lee Jia Wei, Lim Wee Kiat, Tan Jun Bin
+- Prepared By: Group 8
+- Group Member: Alwin Ng Jun Wei, Heng Yi Jie, Lee Jia Wei, Lim Wee Kiat, Tan Jun Bin
 
 ## Folder/File Structure
 1. Airflow File: airflow_cleaning.py
